@@ -3,7 +3,15 @@ import { signToken } from "../services/auth.js";
 
 
 const resolvers = {
-    Query: {},
+    Query: {
+        me: async (_: any, __: any, context: any) => {
+            if (context.user) {
+                const user = await User.findOne({ _id: context.user._id });
+                return user;
+            }
+            throw new Error("You need to be logged in!");
+        }
+    },
     Mutation: {
         addUser: async (_: any, { username, email, password }: any) => {
             const user = await User.create({ username, email, password });
@@ -23,13 +31,21 @@ const resolvers = {
             const token = signToken(user.username, user.password, user._id);
             return { token, user };
         },
-        saveBook: async (_: any, { authors, description, title, bookId, image, link }: any) => {
-            const updatedUser = await User.findOneAndUpdate(
-                { _id: user._id },
+        saveBook: async (_: any, { authors, description, title, bookId, image, link }: any, context: any) => {
+             await User.findOneAndUpdate(
+                { _id: context.user._id },
                 { $addToSet: { savedBooks: { authors, description, title, bookId, image, link } } },
                 { new: true, runValidators: true }
             )
         },
+        removeBook: async (_: any, { bookId }: any, context: any) => {
+            const user = await User.findOneAndUpdate(
+                { _id: context.user._id },
+                { $pull: { savedBooks: { bookId } } },
+                { new: true }
+            );
+            return user;
+        }
     }
 }
 
